@@ -1,0 +1,15 @@
+BasedOnStyle: GNU
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 100
+BraceWrapping:
+  AfterFunction: true
+  AfterControlStatement: true
+  BeforeElse: true
+  IndentBraces: false
+PointerAlignment: Left
+AllowShortIfStatementsOnASingleLine: false
+BreakBeforeBraces: Allman   # GNU style uses Allman braces
+AlwaysBreakAfterDefinitionReturnType: None  # THIS IS THE KEY
+AlwaysBreakAfterReturnType: None   

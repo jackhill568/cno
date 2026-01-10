@@ -5,6 +5,8 @@
 
 #include "cnof.h"
 
+#define MAX_TIME_LENGTH 20
+
 typedef struct
 {
     size_t num_lines;
@@ -176,6 +178,89 @@ char* effects (Effect* sound, char* data)
     return ptr;
 }
 
+char * read_array_time(NoteArray *na, char *data) {
+		char time[MAX_TIME_LENGTH];	
+		int timeptr = 0;
+		char *ptr;	
+		for (ptr = data; *ptr != '{'; ptr++) {
+			switch (*ptr) {
+				case ' ':
+					break;
+				case '\n':
+					break;
+				case '\t':
+					break;
+				case '{':
+					// end of time reading
+					na->time = atof(time);
+					na->num_notes = 0; //initilise note count for reading
+					return ptr;
+				default:
+					if (timeptr < MAX_TIME_LENGTH) {
+						time[timeptr++] = *ptr;
+					} else {
+						printf("time array overflow: %s\n", time);
+					}
+			}
+		}
+	return NULL;
+}
+char * read_note_time(Note *n, char *data) {
+		char note_time[MAX_TIME_LENGTH];	
+		int ntptr = 0;
+		char *ptr;	
+		for (ptr = data; *ptr != '{'; ptr++) {
+			switch (*ptr) {
+				case ' ':
+					break;
+				case '\n':
+					break;
+				case '\t':
+					break;
+				case '+':
+					// end of time reading, cycles ptr back one so the parent function can see the symbol
+					n->active = atof(note_time);
+					return ptr--;
+				case ',':
+					n->active = atof(note_time);
+					return ptr--;
+				default:
+					if (ntptr < MAX_TIME_LENGTH) {
+						note_time[ntptr++] = *ptr;
+					} else {
+						printf("note time overflow: %s\n", note_time);
+					}
+			}
+		}
+	return NULL;
+}
+
+
+char * read_note(Note *n, char *data) {
+		char note[NOTE_LENGTH];	
+		int ntptr = 0;
+		char *ptr;	
+		for (ptr = data; *ptr != '{'; ptr++) {
+			switch (*ptr) {
+				case ' ':
+					break;
+				case '\n':
+					break;
+				case '\t':
+					break;
+				case '+':
+				case ',':
+				default:
+					if (ntptr < NOTE_LENGTH) {
+						note[ntptr++] = *ptr;
+					} else {
+						printf("note overflow: %s\n", note);
+					}
+			}
+		}
+	return NULL;
+}
+
 char* notes (MusicBlock* block, char* data, Note* freeptr)
 {
     Read_Notes state = READ_TIME;
@@ -184,38 +269,27 @@ char* notes (MusicBlock* block, char* data, Note* freeptr)
     char* ptr = data;
     int notearrptr = 0;
     Note* cursor = NULL;
+		char *temp;
 
     while (*ptr != ']')
     {
         switch (state)
         {
         case READ_TIME:
-            if (!isnotspace (*ptr))
-                break;
-            if (*ptr == '{')
-            {
-                if (!isnotspace (*ptr))
-                    break;
-                block->note_lines[notearrptr].time = atof (note);
-                block->note_lines[notearrptr].num_notes = 0;
-                state = READ_NOTE;
-                resetchar (&note[0], &noteptr, sizeof (note));
-            }
-            else
-                note[noteptr++] = *ptr;
-            break;
-
+        		if ((temp=read_array_time(&block->note_lines[notearrptr], ptr)))  { // checks NULL return
+							ptr = temp;
+						} else {
+							printf("NULL returned from reading array time\n");
+						}
+						state = READ_NOTE;
         case READ_NOTE_TIME:
-            if (*ptr == '+' || *ptr == ',')
-            { // if the next line isnt part of the number
-                (*freeptr).active = atof (note);
-                ptr--;
-                state = READ_NOTE;
-                resetchar (&note[0], &noteptr, sizeof (note));
-            }
-            else
-                note[noteptr++] = *ptr;
-            break;
+        		if ((temp=read_note_time(freeptr, ptr)))  { // checks NULL return
+							ptr = temp;
+						} else {
+							printf("NULL returned from reading note time\n");
+						}
+						state = READ_NOTE;
+						break;
 
         case READ_NOTE:
             if (*ptr == ',')
@@ -245,10 +319,10 @@ char* notes (MusicBlock* block, char* data, Note* freeptr)
             }
             else if (*ptr == '+')
             { // end of rythm info (start of extra effects)
-                Effect temp;
-                ptr = effects (&temp, ptr + 1) - 1;
-                (*freeptr).func = wave_functions[temp.wave];
-                (*freeptr).envlope = temp.adsr;
+                Effect temp_effect;
+                ptr = effects (&temp_effect, ptr + 1) - 1;
+                (*freeptr).func = wave_functions[temp_effect.wave];
+                (*freeptr).envlope = temp_effect.adsr;
             }
             else if (*ptr == '}')
             { // enf of time
