@@ -178,172 +178,170 @@ char* effects (Effect* sound, char* data)
     return ptr;
 }
 
-char * read_array_time(NoteArray *na, char *data) {
-		char time[MAX_TIME_LENGTH];	
-		int timeptr = 0;
-		char *ptr;	
-		for (ptr = data; *ptr != '{'; ptr++) {
-			switch (*ptr) {
-				case ' ':
-					break;
-				case '\n':
-					break;
-				case '\t':
-					break;
-				case '{':
-					// end of time reading
-					na->time = atof(time);
-					na->num_notes = 0; //initilise note count for reading
-					return ptr;
-				default:
-					if (timeptr < MAX_TIME_LENGTH) {
-						time[timeptr++] = *ptr;
-					} else {
-						printf("time array overflow: %s\n", time);
-					}
-			}
-		}
-	return NULL;
+char* read_array_time (NoteArray* na, char* data)
+{
+    char time[MAX_TIME_LENGTH];
+    int timeptr = 0;
+    char* ptr;
+    for (ptr = data; *ptr != '{'; ptr++)
+    {
+        switch (*ptr)
+        {
+        case ' ':
+            break;
+        case '\n':
+            break;
+        case '\t':
+            break;
+        default:
+            if (timeptr < MAX_TIME_LENGTH)
+            {
+                time[timeptr++] = *ptr;
+            }
+            else
+            {
+                printf ("time array overflow: %s\n", time);
+            }
+						break;
+        }
+    }
+    na->time = atof (time);
+    na->num_notes = 0;
+		resetchar(&time[0], &timeptr, MAX_TIME_LENGTH);
+		return ptr;
 }
-char * read_note_time(Note *n, char *data) {
-		char note_time[MAX_TIME_LENGTH];	
-		int ntptr = 0;
-		char *ptr;	
-		for (ptr = data; *ptr != '{'; ptr++) {
-			switch (*ptr) {
-				case ' ':
-					break;
-				case '\n':
-					break;
-				case '\t':
-					break;
-				case '+':
-					// end of time reading, cycles ptr back one so the parent function can see the symbol
-					n->active = atof(note_time);
-					return ptr--;
-				case ',':
-					n->active = atof(note_time);
-					return ptr--;
-				default:
-					if (ntptr < MAX_TIME_LENGTH) {
-						note_time[ntptr++] = *ptr;
-					} else {
-						printf("note time overflow: %s\n", note_time);
-					}
-			}
-		}
-	return NULL;
+char* read_note_time (Note* n, char* data)
+{
+    char note_time[MAX_TIME_LENGTH];
+    int ntptr = 0;
+    char* ptr;
+    for (ptr = data; *ptr != '+' && *ptr != '/' && *ptr != '}'; ptr++)
+    {
+        switch (*ptr)
+        {
+        case ' ':
+            break;
+        case '\n':
+            break;
+        case '\t':
+            break;
+        default:
+            if (ntptr < MAX_TIME_LENGTH)
+            {
+                note_time[ntptr++] = *ptr;
+            }
+            else
+            {
+                printf ("note time overflow: %s\n", note_time);
+            }
+						break;
+        }
+    }
+    n->active = atof (note_time);
+		resetchar(&note_time[0], &ntptr, MAX_TIME_LENGTH);
+    return ptr--;
 }
 
+void init_note(Note *note, char name[NOTE_LENGTH], Effect effects) {
+		note->phase = 0.0f;
+		note->amplitude = 1.0f;
+		note->active = 1.0f;
+		note->func = wave_functions[effects.wave];
+		note->envlope = effects.adsr;
+    note->frequency = note_to_freq (note_name_to_midi (&name[0]));
+}
 
-char * read_note(Note *n, char *data) {
-		char note[NOTE_LENGTH];	
-		int ntptr = 0;
-		char *ptr;	
-		for (ptr = data; *ptr != '{'; ptr++) {
-			switch (*ptr) {
-				case ' ':
-					break;
-				case '\n':
-					break;
-				case '\t':
-					break;
-				case '+':
-				case ',':
-				default:
-					if (ntptr < NOTE_LENGTH) {
-						note[ntptr++] = *ptr;
-					} else {
-						printf("note overflow: %s\n", note);
-					}
-			}
-		}
-	return NULL;
+char* read_note (Note* n, char* data, Effect blockeffects)
+{
+    char note[NOTE_LENGTH];
+    int ntptr = 0;
+    char* ptr;
+    for (ptr = data; *ptr != ',' && *ptr != '}' && *ptr != '+' && *ptr !='/'; ptr++)
+    {
+        switch (*ptr)
+        {
+        case ' ':
+            break;
+        case '\n':
+            break;
+        case '\t':
+            break;
+        default:
+            if (ntptr < NOTE_LENGTH)
+            {
+                note[ntptr++] = *ptr;
+            }
+            else
+            {
+                printf ("note overflow: %s\n", note);
+            }
+						break;
+        }
+    }
+		init_note(n, note, blockeffects);
+		resetchar(&note[0], &ntptr, NOTE_LENGTH);
+    return ptr--;
 }
 
 char* notes (MusicBlock* block, char* data, Note* freeptr)
 {
     Read_Notes state = READ_TIME;
-    char note[NOTE_LENGTH];
-    int noteptr = 0;
     char* ptr = data;
     int notearrptr = 0;
     Note* cursor = NULL;
-		char *temp;
+    char* temp;
 
     while (*ptr != ']')
     {
-        switch (state)
-        {
-        case READ_TIME:
-        		if ((temp=read_array_time(&block->note_lines[notearrptr], ptr)))  { // checks NULL return
-							ptr = temp;
-						} else {
-							printf("NULL returned from reading array time\n");
-						}
-						state = READ_NOTE;
-        case READ_NOTE_TIME:
-        		if ((temp=read_note_time(freeptr, ptr)))  { // checks NULL return
-							ptr = temp;
-						} else {
-							printf("NULL returned from reading note time\n");
-						}
-						state = READ_NOTE;
-						break;
-
-        case READ_NOTE:
-            if (*ptr == ',')
-            { // end of note info
-                (*freeptr).amplitude = 1.0f;
-                (*freeptr).phase = 0.0f;
-                if (!(*freeptr).func)
-                    (*freeptr).func = wave_functions[block->effects.wave];
-                if (!(*freeptr).envlope.state)
-                    (*freeptr).envlope = block->effects.adsr;
-                if (!cursor)
-                    cursor = freeptr;
-                // initialise the next note to have block conf
-                if (*(ptr + 1) != '}')
-                {
-                    *(++freeptr) = (Note){};
-                    freeptr->func = wave_functions[block->effects.wave];
-                    freeptr->envlope = block->effects.adsr;
-                    block->note_lines[notearrptr].num_notes++;
-                }
-                resetchar (&note[0], &noteptr, sizeof (note));
-            }
-            else if (*ptr == '/')
-            { // end of pitch info
-                state = READ_NOTE_TIME;
-                resetchar (&note[0], &noteptr, sizeof (note));
-            }
-            else if (*ptr == '+')
-            { // end of rythm info (start of extra effects)
+				if (*ptr == '/') state = READ_NOTE_TIME;
+				
+				else if (*ptr == '+') {
                 Effect temp_effect;
                 ptr = effects (&temp_effect, ptr + 1) - 1;
                 (*freeptr).func = wave_functions[temp_effect.wave];
                 (*freeptr).envlope = temp_effect.adsr;
-            }
-            else if (*ptr == '}')
-            { // enf of time
+				} else if (*ptr == '}') {
                 block->note_lines[notearrptr++].notes = cursor;
-                freeptr++;
                 cursor = NULL;
                 state = READ_TIME;
-                resetchar (&note[0], &noteptr, sizeof (note));
+				}
+        switch (state)
+        {
+        case READ_TIME:
+            if ((temp = read_array_time (&block->note_lines[notearrptr], ptr)))
+            { // checks NULL return
+                ptr = temp;
             }
             else
             {
-                note[noteptr++] = *ptr;
-                if (*(ptr + 1) == '/' || *(ptr + 1) == '+' || *(ptr + 1) == ',')
-                { // note buffer is full and not loading time
-                    // therefore must be a freq
-                    (*freeptr).frequency = note_to_freq (note_name_to_midi (&note[0]));
-                    resetchar (&note[0], &noteptr, sizeof (note));
-                    if (*(ptr + 1) != '/')
-                        (*freeptr).active = 1.0f; // if no explicit length
-                }
+                printf ("NULL returned from reading array time\n");
             }
+            state = READ_NOTE;
+						break;
+        case READ_NOTE_TIME:
+            if ((temp = read_note_time (freeptr, ptr)))
+            { // checks NULL return
+                ptr = temp;
+            }
+            else
+            {
+                printf ("NULL returned from reading note time\n");
+            }
+            state = READ_NOTE;
+            break;
+
+        case READ_NOTE:
+            if ((temp = read_note(freeptr++, ptr, block->effects)))
+            { // checks NULL return
+                ptr = temp;
+            }
+            else
+            {
+                printf ("NULL returned from reading note\n");
+            }
+						if (!cursor) {
+							cursor = freeptr;
+						}
             break;
 
         default:
@@ -354,22 +352,22 @@ char* notes (MusicBlock* block, char* data, Note* freeptr)
     return ptr;
 }
 
-void* parseBlock (Song *song, int block_index, char* data)
+void* parseBlock (Song* song, int block_index, char* data)
 {
     blockSizeData music_size = get_block_sizes (data);
 
-    size_t block_mem = sizeof (MusicBlock) + sizeof (NoteArray) * (music_size.num_lines)
-                       + sizeof (Note) * (music_size.num_notes+1);
+    size_t block_mem = sizeof (MusicBlock) + sizeof (NoteArray) * (music_size.num_lines+1)
+                       + sizeof (Note) * (music_size.num_notes + 2);
 
-    song->blocks[block_index]= calloc (1, block_mem);
-		MusicBlock * block = song->blocks[block_index];
+    song->blocks[block_index] = calloc (1, block_mem);
+    MusicBlock* block = song->blocks[block_index];
     if (!block)
         return NULL;
     block->num_lines = music_size.num_lines;
 
     char* freeptr = (char*)(block + 1);
     block->note_lines = (NoteArray*)freeptr;
-    freeptr += sizeof (NoteArray) * (music_size.num_lines + 1);
+    freeptr += sizeof (NoteArray) * (music_size.num_lines);
 
     Cnof_state state = HEADER;
     for (char* ptr = data; *ptr != ']'; ptr++)
@@ -432,7 +430,7 @@ char* read_file (const char* filename)
 
 size_t count_blocks (char* data)
 {
-    size_t count=0;
+    size_t count = 0;
     for (char* ptr = data; *ptr != '\0'; ptr++)
     {
         if (*ptr == ']')
@@ -486,7 +484,7 @@ void parseSong (Song* song, const char* filename)
 
 void clean_song (Song* song)
 {
-    for (int blockptr = 0; blockptr<song->num_blocks; blockptr++)
+    for (int blockptr = 0; blockptr < song->num_blocks; blockptr++)
     {
         free (song->blocks[blockptr]);
     }
@@ -497,7 +495,7 @@ void print_note (Note note) { printf (" %f", note.frequency); }
 void print_note_array (NoteArray na)
 {
     printf ("time: %f\n", na.time);
-    for (int i =0; i< na.num_notes; i++)
+    for (int i = 0; i < na.num_notes; i++)
     {
         print_note (na.notes[i]);
     }
