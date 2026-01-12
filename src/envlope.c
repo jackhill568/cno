@@ -3,7 +3,7 @@
 
 void env_init(Env *env, float sample_rate, float attck, float decay, float sus, float rel) {
 
-	env->state = ATTACK;
+	env->state = OFF;
 	env->value = 0.0f;
 
 	env->attackRate = 1.0f / (attck * sample_rate);

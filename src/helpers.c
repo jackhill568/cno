@@ -10,30 +10,30 @@ float triangle_wave (float phase) { return 1.0f - 4.0f * fabsf (0.5f - phase); }
 extern float (*wave_functions[NUM_WAVES]) (float)
     = { sine_wave, saw_wave, square_wave, triangle_wave };
 
-int get_free_note (Synth* synth)
-{
-    for (int i = 0; i < MAX_NOTES; i++)
-    {
-        if (synth->notes[i].active <= 0.0f)
-            return i;
-    }
-    return -1;
-}
-
-void noteOn (Synth* synth, Note* note)
-{
-    int index = get_free_note (synth);
-    if (index < 0)
-        return;
-    synth->notes[index] = *note;
-}
-
-void noteOff (Synth* synth, int index)
-{
-    if (index < 0 || index >= MAX_NOTES)
-        return;
-    synth->notes[index].active = 0.0f;
-}
+//int get_free_note (Synth* synth)
+//{
+//    for (int i = 0; i < MAX_NOTES; i++)
+//    {
+//        if (synth->notes[i].active <= 0.0f)
+//            return i;
+//    }
+//    return -1;
+//}
+//
+//void noteOn (Synth* synth, Note* note)
+//{
+//    int index = get_free_note (synth);
+//    if (index < 0)
+//        return;
+//    synth->notes[index] = *note;
+//}
+//
+//void noteOff (Synth* synth, int index)
+//{
+//    if (index < 0 || index >= MAX_NOTES)
+//        return;
+//    synth->notes[index].active = 0.0f;
+//}
 
 int note_name_to_midi (const char* note)
 {
@@ -79,4 +79,18 @@ int note_name_to_midi (const char* note)
     return (octave + 1) * 12 + noteIndex;
 }
 
-float note_to_freq (int note) { return 440.0f * powf (2.0f, (note - 69) / 12.0f); }
+inline float note_to_freq (int note) { return 440.0f * powf (2.0f, (note - 69) / 12.0f); }
+
+
+int compare_by_time(const void *a, const void *b) {
+    const NoteArray *e1 = (const NoteArray *)a;
+    const NoteArray *e2 = (const NoteArray *)b;
+
+    if (e1->time < e2->time) return -1;
+    if (e1->time > e2->time) return 1;
+    return 0;
+}
+
+
+
+

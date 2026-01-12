@@ -6,13 +6,6 @@
 #include "cnof.h"
 
 #define MAX_TIME_LENGTH 20
-
-typedef struct
-{
-    size_t num_lines;
-    size_t num_notes;
-} blockSizeData;
-
 typedef enum
 {
     HEADER,
@@ -109,7 +102,7 @@ char* effects (Effect* sound, char* data)
             if (!isnotspace (c))
                 break; // is space
             if (c == ',')
-                return ptr; // case when called by notes
+                return --ptr; // case when called by notes
             else if (c != ':')
             {
                 if (effectptr < EFFECT_LENGTH - 1)
@@ -175,7 +168,7 @@ char* effects (Effect* sound, char* data)
         }
         ptr++;
     }
-    return ptr;
+    return --ptr;
 }
 
 char* read_array_time (NoteArray* na, char* data)
@@ -185,6 +178,7 @@ char* read_array_time (NoteArray* na, char* data)
     char* ptr;
     for (ptr = data; *ptr != '{'; ptr++)
     {
+
         switch (*ptr)
         {
         case ' ':
@@ -205,6 +199,7 @@ char* read_array_time (NoteArray* na, char* data)
 						break;
         }
     }
+		time[timeptr++] = '\0';
     na->time = atof (time);
     na->num_notes = 0;
 		resetchar(&time[0], &timeptr, MAX_TIME_LENGTH);
@@ -215,7 +210,7 @@ char* read_note_time (Note* n, char* data)
     char note_time[MAX_TIME_LENGTH];
     int ntptr = 0;
     char* ptr;
-    for (ptr = data; *ptr != '+' && *ptr != '/' && *ptr != '}'; ptr++)
+    for (ptr = data; *ptr != '+' && *ptr != '/' && *ptr != '}' && *ptr != ','; ptr++)
     {
         switch (*ptr)
         {
@@ -237,9 +232,10 @@ char* read_note_time (Note* n, char* data)
 						break;
         }
     }
+		note_time[ntptr++] = '\0';
     n->active = atof (note_time);
 		resetchar(&note_time[0], &ntptr, MAX_TIME_LENGTH);
-    return ptr--;
+    return --ptr;
 }
 
 void init_note(Note *note, char name[NOTE_LENGTH], Effect effects) {
@@ -248,6 +244,7 @@ void init_note(Note *note, char name[NOTE_LENGTH], Effect effects) {
 		note->active = 1.0f;
 		note->func = wave_functions[effects.wave];
 		note->envlope = effects.adsr;
+		note->started = 0;
     note->frequency = note_to_freq (note_name_to_midi (&name[0]));
 }
 
@@ -280,31 +277,37 @@ char* read_note (Note* n, char* data, Effect blockeffects)
     }
 		init_note(n, note, blockeffects);
 		resetchar(&note[0], &ntptr, NOTE_LENGTH);
-    return ptr--;
+    return --ptr;
 }
 
 char* notes (MusicBlock* block, char* data, Note* freeptr)
 {
     Read_Notes state = READ_TIME;
-    char* ptr = data;
     int notearrptr = 0;
     Note* cursor = NULL;
     char* temp;
+		char *ptr;
 
-    while (*ptr != ']')
+    for (ptr = data; *ptr != ']'; ptr++)
     {
-				if (*ptr == '/') state = READ_NOTE_TIME;
+				if (*ptr == '/') {state = READ_NOTE_TIME;
+						continue;
+				}
 				
 				else if (*ptr == '+') {
                 Effect temp_effect;
-                ptr = effects (&temp_effect, ptr + 1) - 1;
+                ptr = effects (&temp_effect, ptr + 1);
                 (*freeptr).func = wave_functions[temp_effect.wave];
                 (*freeptr).envlope = temp_effect.adsr;
+								continue;
 				} else if (*ptr == '}') {
                 block->note_lines[notearrptr++].notes = cursor;
                 cursor = NULL;
                 state = READ_TIME;
-				}
+								continue;
+				} else if (*ptr == ',') continue;
+				else if (*ptr == '\n') continue;
+
         switch (state)
         {
         case READ_TIME:
@@ -331,9 +334,11 @@ char* notes (MusicBlock* block, char* data, Note* freeptr)
             break;
 
         case READ_NOTE:
-            if ((temp = read_note(freeptr++, ptr, block->effects)))
+            if ((temp = read_note(freeptr, ptr, block->effects)))
             { // checks NULL return
+								freeptr++;
                 ptr = temp;
+								block->note_lines[notearrptr].num_notes++;
             }
             else
             {
@@ -347,7 +352,6 @@ char* notes (MusicBlock* block, char* data, Note* freeptr)
         default:
             break;
         }
-        ptr++;
     }
     return ptr;
 }
@@ -357,17 +361,16 @@ void* parseBlock (Song* song, int block_index, char* data)
     blockSizeData music_size = get_block_sizes (data);
 
     size_t block_mem = sizeof (MusicBlock) + sizeof (NoteArray) * (music_size.num_lines+1)
-                       + sizeof (Note) * (music_size.num_notes + 2);
+                       + sizeof (Note) * (music_size.num_notes +3);
 
     song->blocks[block_index] = calloc (1, block_mem);
     MusicBlock* block = song->blocks[block_index];
     if (!block)
         return NULL;
-    block->num_lines = music_size.num_lines;
-
-    char* freeptr = (char*)(block + 1);
-    block->note_lines = (NoteArray*)freeptr;
-    freeptr += sizeof (NoteArray) * (music_size.num_lines);
+    block->music_size = music_size;
+		
+    block->note_lines = (NoteArray*)(block + 1);
+    Note *freeptr = (Note*)(block->note_lines + music_size.num_lines) ;
 
     Cnof_state state = HEADER;
     for (char* ptr = data; *ptr != ']'; ptr++)
@@ -504,7 +507,7 @@ void print_note_array (NoteArray na)
 void print_music_block (MusicBlock block)
 {
     printf ("block: \n");
-    for (int i = 0; i < block.num_lines; i++)
+    for (int i = 0; i < block.music_size.num_lines; i++)
     {
         print_note_array (block.note_lines[i]);
     }

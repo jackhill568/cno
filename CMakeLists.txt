@@ -16,21 +16,21 @@ file(GLOB_RECURSE SOURCES
 )
 
 # Enable warnings
-add_compile_options(
-    -Wall
-    -Wextra
-    -Wpedantic
-    -Wshadow
-    -Wconversion
-    -g
-)
-
-# AddressSanitizer (heap corruption, OOB, use-after-free)
-add_compile_options(-fsanitize=address)
-add_link_options(-fsanitize=address)
+# add_compile_options(
+#     -Wall
+#     -Wextra
+#     -Wpedantic
+#     -Wshadow
+#     -Wconversion
+#     -g
+# )
+# 
+# # AddressSanitizer (heap corruption, OOB, use-after-free)
+# add_compile_options(-fsanitize=address)
+# add_link_options(-fsanitize=address)
 
 add_executable(main ${SOURCES})
-target_compile_options(main PRIVATE -g -O0)
+# target_compile_options(main PRIVATE -g -O0)
 
 target_include_directories(main PRIVATE
     include
