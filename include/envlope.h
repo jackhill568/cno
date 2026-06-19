@@ -7,7 +7,7 @@ typedef enum {
 
 
 typedef struct {
-	
+
 	float value;
 	float attackRate;
 	float decayRate;

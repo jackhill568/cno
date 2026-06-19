@@ -1,0 +1,70 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-Wextra",
+      "-std=c99",
+      "-Iinclude",
+      "-O3",
+      "-c",
+      "-o",
+      "build/cnof.o",
+      "src/cnof.c"
+    ],
+    "directory": "/home/ja/CompSci/cno",
+    "file": "/home/ja/CompSci/cno/src/cnof.c",
+    "output": "/home/ja/CompSci/cno/build/cnof.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-Wextra",
+      "-std=c99",
+      "-Iinclude",
+      "-O3",
+      "-c",
+      "-o",
+      "build/envlope.o",
+      "src/envlope.c"
+    ],
+    "directory": "/home/ja/CompSci/cno",
+    "file": "/home/ja/CompSci/cno/src/envlope.c",
+    "output": "/home/ja/CompSci/cno/build/envlope.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-Wextra",
+      "-std=c99",
+      "-Iinclude",
+      "-O3",
+      "-c",
+      "-o",
+      "build/helpers.o",
+      "src/helpers.c"
+    ],
+    "directory": "/home/ja/CompSci/cno",
+    "file": "/home/ja/CompSci/cno/src/helpers.c",
+    "output": "/home/ja/CompSci/cno/build/helpers.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-Wextra",
+      "-std=c99",
+      "-Iinclude",
+      "-O3",
+      "-c",
+      "-o",
+      "build/main.o",
+      "src/main.c"
+    ],
+    "directory": "/home/ja/CompSci/cno",
+    "file": "/home/ja/CompSci/cno/src/main.c",
+    "output": "/home/ja/CompSci/cno/build/main.o"
+  }
+]

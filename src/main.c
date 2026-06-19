@@ -1,8 +1,13 @@
 #include "cnof.h"
 #include "helpers.h"
-#include "portaudio.h"
+#include <sndfile.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define SAMPLE_RATE 44100.0f
+
 
 static unsigned int seed = 1;
 float white_noise ()
@@ -11,71 +16,11 @@ float white_noise ()
     return ((seed >> 16) / 32768.0f) - 1.0f;
 }
 
-static int patestCallback (const void* inputBuffer, void* outputBuffer,
-                           unsigned long framesPerBuffer, const PaStreamCallbackTimeInfo* timeInfo,
-                           PaStreamCallbackFlags statusFlags, void* userData)
-{
-    Synth* data = (Synth*)userData;
-    float* out = (float*)outputBuffer;
-    unsigned int i;
-    (void)inputBuffer;
-    float sample;
-		const double epsilon = 1e-5; // ~0.04 samples at 44.1kHz
-
-    for (i = 0; i < framesPerBuffer; i++)
-    {
-        sample = 0.0f;
-				double now = timeInfo->outputBufferDacTime + i * 1.0/data->sample_rate;
-        for (int index = 0; index < (int)data->size; index++)
-        {
-            NoteArray* na = &data->master_queue[index];
-            for (int j = 0; j < (int)na->num_notes; j++)
-            {
-                Note* note = &na->notes[j];
-							                if (na->time+ data->start_time <= epsilon+now && !note->started)
-                {
-
-                    note->envlope.state = ATTACK;
-                    note->started = 1;
-                }
-                if (note->envlope.state != OFF)
-                {
-                    if (!note->func)
-                    {
-                        //fprintf (stderr, "ERROR: NULL note->func at sample %llu (note index %d)\n",
-                         //        data->current_sample, j);
-												note->func = wave_functions[SINE];
-                        continue; // or return paAbort;
-                    }
-
-                    sample += note->func (note->phase) * note->amplitude
-                              * env_process (&note->envlope);
-                    if (note->envlope.state == OFF)
-                        note->active = 0.0f;
-
-                    note->phase += note->frequency / data->sample_rate;
-                    if (note->phase >= 1)
-                        note->phase -= 1.0f;
-                    if (note->active > 0.0f)
-                        note->active -= 1.0f / data->sample_rate;
-                    else if (note->envlope.state == SUSTAIN)
-                        note->envlope.state = RELEASE;
-                }
-            }
-        }
-        sample *= data->amplitude;
-        *out++ = sample; /* left */
-        *out++ = sample; /* right */
-    }
-    return paContinue;
-}
 
 int main ()
 {
-
-    PaError err;
-
-    PaStream* stream;
+    SNDFILE* file;
+    SF_INFO sfinfo;
 
     Synth data;
     data.amplitude = 0.1f;
@@ -83,7 +28,7 @@ int main ()
     data.current_sample = 0;
 
     Song song;
-    parseSong (&song, "../test.CNOF");
+    parseSong (&song, "test.CNOF");
     printf ("Compliling complete\n");
 
     int total_notearrys = 0;
@@ -110,46 +55,78 @@ int main ()
         }
     }
     qsort (master_queue, (size_t)total_notearrys, sizeof (NoteArray), compare_by_time);
+    print_song (song);
+	
+	memset(&sfinfo, 0, sizeof(sfinfo));
+	sfinfo.samplerate = data.sample_rate;
+	sfinfo.channels = 2;
+	sfinfo.format		= (SF_FORMAT_WAV | SF_FORMAT_PCM_24) ;
 
-    err = Pa_Initialize ();
-    if (err != paNoError)
-        goto error;
-    /* Open an audio I/O stream. */
-    err = Pa_OpenDefaultStream (&stream, 0,      /* no input channels */
-                                2,               /* stereo output */
-                                paFloat32,       /* 32 bit floating point output */
-                                SAMPLE_RATE, 256, /* frames per buffer, i.e. the number
-                                                         of sample frames that PortAudio will
-                                                         request from the callback. Many apps
-                                                         may want to use
-                                                         paFramesPerBufferUnspecified, which
-                                                         tells PortAudio to pick the best,
-                                                         possibly changing, buffer size.*/
-                                patestCallback,  /* this is your callback function */
-                                &data);          /*This is a pointer that will be passed to
-                                                           your callback*/
-    if (err != paNoError)
-        goto error;
+	
+	int total_samples = 30 * SAMPLE_RATE;
 
-    err = Pa_StartStream (stream);
-    if (err != paNoError)
-        goto error;
-		
-		data.start_time = Pa_GetStreamTime(stream)+0.05;
+	float *buffer = malloc(sizeof(float) * 2 * total_samples);
+    if (!(file = sf_open ("sine.wav", SFM_WRITE, &sfinfo)))
+    {
+        printf ("Error : Not able to open output file.\n");
+		free(buffer);
+        return 1;
+    }
 
-    //print_song (song);
+    unsigned int i;
+    float sample;
+    for (i = 0; i < total_samples; i++) // for each sample
+    {
+        sample = 0.0f;
+		double now = data.current_sample / SAMPLE_RATE;
+        for (int index = 0; index < (int)data.size; index++) // loops through each array of notes
+        {
+            NoteArray* na = &data.master_queue[index];
+            for (int j = 0; j < (int)na->num_notes; j++) // for each note in the array
+            {
+                Note* note = &na->notes[j];
+                if (na->time + data.start_time <= now && !note->started)
+                {
+                    note->envlope.state = ATTACK;
+                    note->started = 1;
+                }
+                if (note->envlope.state != OFF)
+                {
+                    if (!note->func)
+                    {
+                        // fprintf (stderr, "ERROR: NULL note->func at sample %llu (note index
+                        // %d)\n",
+                        //         data->current_sample, j);
+                        note->func = wave_functions[SINE];
+                        continue; // or return paAbort;
+                    }
+                    sample += note->func (note->phase) * note->amplitude
+                              * env_process (&note->envlope);
+                    if (note->envlope.state == OFF)
+                        note->active = 0.0f;
 
-    Pa_Sleep (30000);
+                    note->phase += note->frequency / data.sample_rate;
+                    if (note->phase >= 1)
+                        note->phase -= 1.0f;
+                    if (note->active > 0.0f)
+                        note->active -= 1.0f / SAMPLE_RATE;
+                    else if (note->envlope.state == SUSTAIN)
+                        note->envlope.state = RELEASE;
+                }
+            }
+        }
+		// multiplies by global amplitude then writes left and right to buffer
+        sample *= data.amplitude;
+		data.current_sample++;
+		buffer[2* i] = sample;
+		buffer[2* i + 1] = sample;
+    }
 
-    err = Pa_StopStream (stream);
-    if (err != paNoError)
-        goto error;
+	if (sf_write_float (file, buffer, sfinfo.channels * total_samples) !=
+											sfinfo.channels * total_samples)
+		puts (sf_strerror (file)) ;
 
-error:
-    Pa_CloseStream (stream);
-    clean_song (&song);
-    err = Pa_Terminate ();
-    if (err != paNoError)
-        printf ("PortAudio error: %s\n", Pa_GetErrorText (err));
-    return 1;
+	sf_close(file);
+	free(buffer);
+	return 0;
 }

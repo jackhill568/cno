@@ -16,11 +16,15 @@ typedef struct {
 	float phase;
 	float frequency;
 	float amplitude;
-	float active;
-	float (*func)(float);
+	float active; // is the note on or off
+	float (*func)(float); // the primitive sound function e.g. sine or square
 	bool started;
 	Env envlope;
 } Note;
+
+
+// NoteArrays is the structure that store notes that start at the same time in a block
+// so most likely a note array is storing a chord
 typedef struct { 
 	float time;
 	Note *notes;
@@ -28,6 +32,7 @@ typedef struct {
 	uint64_t start_sample;
 } NoteArray;
 
+// 
 typedef struct {
 	NoteArray *master_queue;
 	size_t size;
@@ -37,6 +42,7 @@ typedef struct {
 	float start_time;
 } Synth;
 
+// effects can be applied to blocks or individually to notes
 typedef struct {
 	Wave wave;
 	Env adsr;
@@ -49,7 +55,8 @@ typedef struct
     size_t num_notes;
 } blockSizeData;
 
-// a group of notes that form the same phrase / have similar properties or uses
+// a music block represents the notes of one 'instrument' 
+//
 typedef struct { 
 	NoteArray *note_lines;
 	Effect effects;
