@@ -1,6 +1,6 @@
 CC      = gcc
 CFLAGS  = -Wall -Wextra -std=c99 -Iinclude -O3
-LDFLAGS =  -lm -lsndfile
+LDFLAGS =  -lm -lsndfile 
 
 BUILD   = build
 TARGET  = main

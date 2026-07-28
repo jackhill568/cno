@@ -4,35 +4,22 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-float saw_wave (float phase) { return phase * 2 - 1.0f; }
-float sine_wave (float phase) { return sin (2 * 3.14 * phase); }
-float square_wave (float phase) { return 1.0f - 2.0f * (phase >= 0.5f); }
-float triangle_wave (float phase) { return 1.0f - 4.0f * fabsf (0.5f - phase); }
+float saw_wave (Note *note) { return note->phase * 2 - 1.0f; }
+float sine_wave (Note *note) { return sin (2 * 3.14 * note->phase); }
+float square_wave (Note *note) { return 1.0f - 2.0f * (note->phase >= 0.5f); }
+float triangle_wave (Note *note) { return 1.0f - 4.0f * fabsf (0.5f - note->phase); }
 
-extern float (*wave_functions[NUM_WAVES]) (float)
-    = { sine_wave, saw_wave, square_wave, triangle_wave };
-
-Note activeNotes[MAX_NOTES];
-
-int get_free_note()
-{
-	int min = 0;
-    for (int i = 0; i < MAX_NOTES; i++)
-    {
-		if (activeNotes[i].amplitude < activeNotes[min].amplitude) {
-			min = i;
-		}
-        if (activeNotes[i].active <= 0.0f)
-            return i;
-    }
-    return min;
+float karplus_strong(Note *note) {
+	int next = (note->delayIndex + 1) % note->delayLength;
+	float output = note->delay[note->delayIndex];
+	float average = 0.5 * (output + note->delay[next]);
+	note->delay[note->delayIndex] = average * 0.996;
+	note->delayIndex = next;
+	return output;
 }
 
-void noteOn(Note* note)
-{
-    int index = get_free_note();
-    activeNotes[index] = *note;
-}
+extern float (*wave_functions[NUM_WAVES]) (Note *)
+    = { sine_wave, saw_wave, square_wave, triangle_wave, karplus_strong };
 
 int note_name_to_midi (const char* note)
 {
@@ -78,8 +65,14 @@ int note_name_to_midi (const char* note)
     return (octave + 1) * 12 + noteIndex;
 }
 
-inline float note_to_freq (int note) { return 440.0f * powf (2.0f, (note - 69) / 12.0f); }
+float white_noise ()
+{
+	static unsigned int seed = 1;
+    seed = seed * 1664525 + 1013904223;
+    return ((seed >> 16) / 32768.0f) - 1.0f;
+}
 
+inline float note_to_freq (int note) { return 440.0f * powf (2.0f, (note - 69) / 12.0f); }
 
 int compare_by_time(const void *a, const void *b) {
     const NoteArray *e1 = (const NoteArray *)a;

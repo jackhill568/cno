@@ -9,14 +9,6 @@
 
 #define SAMPLE_RATE 44100.0f
 
-
-static unsigned int seed = 1;
-float white_noise ()
-{
-    seed = seed * 1664525 + 1013904223;
-    return ((seed >> 16) / 32768.0f) - 1.0f;
-}
-
 int main ()
 {
     SNDFILE* file;
@@ -28,7 +20,7 @@ int main ()
     data.current_sample = 0;
 
     Song song;
-    parseSong (&song, "test.CNOF");
+    parseSong (&song, "Wonder.CNOF");
     printf ("Compliling complete\n");
 
     int total_notearrys = 0;
@@ -56,7 +48,7 @@ int main ()
     }
     qsort (master_queue, (size_t)total_notearrys, sizeof (NoteArray), compare_by_time);
 	
-	int lastTime = master_queue[total_notearrys-1].start_sample + master_queue[total_notearrys-1].time;
+	int lastTime = master_queue[total_notearrys-1].time + master_queue[total_notearrys-1].notes->active;
 	int total_samples = lastTime * SAMPLE_RATE;
 	
 	printf("Attempting to convert to SongTree\n");
@@ -71,11 +63,11 @@ int main ()
 	memset(&sfinfo, 0, sizeof(sfinfo));
 	sfinfo.samplerate = data.sample_rate;
 	sfinfo.channels = 2;
-	sfinfo.format		= (SF_FORMAT_WAV | SF_FORMAT_PCM_24) ;
+	sfinfo.format = (SF_FORMAT_WAV | SF_FORMAT_PCM_24) ;
 	
 	printf("Creating sndfile write buffer\n");
 	float *buffer = malloc(sizeof(float) * 2 * total_samples);
-    if (!(file = sf_open ("sine.wav", SFM_WRITE, &sfinfo)))
+    if (!(file = sf_open ("temp.wav", SFM_WRITE, &sfinfo)))
     {
         printf ("Error : Not able to open output file.\n");
 		free(buffer);
@@ -88,6 +80,7 @@ int main ()
 	bool playedCurrent=false;
 	SongTree *current_branch = songtree;
 	printf("Starting main sample loop\n");
+	printf("Total samples: %d\n", total_samples);
     for (i = 0; i < total_samples; i++) 
     {
         if (current_branch->next != NULL && current_branch->next->na->start_sample <= (long unsigned int)i)
@@ -96,7 +89,6 @@ int main ()
 			current_branch = current_branch->next;
         }
         if (!playedCurrent) {
-			printf("Stating playing block at %ld\n", current_branch->na->start_sample);
         	for (int index = 0; index < current_branch->size;  index++) 
         	{
         	    NoteArray* na = &current_branch->na[index];
@@ -110,6 +102,7 @@ int main ()
         	            note->func = wave_functions[SINE];
         	            continue; 
         	        }
+					add_note(note);
         	    }
         	}
 			playedCurrent = true;
@@ -119,7 +112,7 @@ int main ()
         sample = 0.0f;
 		while (currentNode != NULL)  {
 			Note *note =currentNode->note;
-			sample += note->func (note->phase) * note->amplitude
+			sample += note->func (note) * note->amplitude
         	                  * env_process (&note->envlope);
         	if (note->envlope.state == OFF)
         	    note->active = 0.0f;

@@ -7,19 +7,23 @@
 #define NOTE_H
 
 #define MAX_NOTES 20
+#define MAX_KARPLUS_DELAY 2400
 typedef enum {
-	SINE, SAW, SQUARE, TRIANGLE, NUM_WAVES
+	SINE, SAW, SQUARE, TRIANGLE, KARPLUS, NUM_WAVES
 } Wave;
 
 
-typedef struct {
+typedef struct Note{
 	float phase;
 	float frequency;
 	float amplitude;
 	float active; // is the note on or off
-	float (*func)(float); // the primitive sound function e.g. sine or square
+	float (*func)(struct Note *); // the primitive sound function e.g. sine or square
 	bool started;
 	Env envlope;
+	float delay[MAX_KARPLUS_DELAY];
+	int delayIndex;
+	int delayLength;
 } Note;
 
 
@@ -68,19 +72,15 @@ typedef struct {
 	float speed;
 	size_t num_blocks;
 } Song;
-extern float (*wave_functions[NUM_WAVES])(float);
+extern float (*wave_functions[NUM_WAVES])(Note *);
 
-float saw_wave(float phase);
+float saw_wave(Note *note);
 
-float sine_wave(float phase);
+float sine_wave(Note *note);
 
-float square_wave(float phase);
+float square_wave(Note *note);
 
-float triangle_wave(float phase);
-
-int get_free_note();
-
-void noteOn(Note *note);
+float triangle_wave(Note *note);
 
 int note_name_to_midi(const char *note);
 

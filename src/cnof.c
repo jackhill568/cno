@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "cnof.h"
+#include "helpers.h"
 
 #define MAX_TIME_LENGTH 20
 typedef enum
@@ -130,13 +131,15 @@ char* effects (Effect* sound, char* data)
             else
             {
                 effect[effectptr++] = '\0';
-                if (strcmp (effect, "sin") == 0)
+				if (strcmp (effect, "sin") == 0)
                     sound->wave = SINE;
-                else if (strcmp (effect, "saw") == 0)
+				else if (strcmp (effect, "saw") == 0)
                     sound->wave = SAW;
-                else if (strcmp (effect, "squ") == 0)
+				else if (strcmp (effect, "squ") == 0)
                     sound->wave = SQUARE;
-                else
+				else if (strcmp (effect, "kar") == 0) 
+					sound->wave = KARPLUS;
+				else
                     sound->wave = TRIANGLE;
                 state = READ_EFFECT_NAME;
                 resetchar (&effect[0], &effectptr, sizeof (effect));
@@ -237,7 +240,6 @@ char* read_note_time (Note* n, char* data)
 		resetchar(&note_time[0], &ntptr, MAX_TIME_LENGTH);
     return --ptr;
 }
-
 void init_note(Note *note, char name[NOTE_LENGTH], Effect effects) {
 		note->phase = 0.0f;
 		note->amplitude = 1.0f;
@@ -245,7 +247,12 @@ void init_note(Note *note, char name[NOTE_LENGTH], Effect effects) {
 		note->func = wave_functions[effects.wave];
 		note->envlope = effects.adsr;
 		note->started = 0;
-    note->frequency = note_to_freq (note_name_to_midi (&name[0]));
+		note->delayIndex = 0;
+		for (int i = 0; i < MAX_KARPLUS_DELAY; i++) {
+			note->delay[i] = ((float)rand() /RAND_MAX) *2.0 - 1.0;
+		}
+    	note->frequency = note_to_freq (note_name_to_midi (&name[0]));
+		note->delayLength = SAMPLE_RATE / note->frequency;
 }
 
 char* read_note (Note* n, char* data, Effect blockeffects)
