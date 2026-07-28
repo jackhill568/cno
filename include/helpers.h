@@ -78,16 +78,26 @@ float square_wave(float phase);
 
 float triangle_wave(float phase);
 
-int get_free_note(Synth *synth);
+int get_free_note();
 
-void noteOn(Synth *synth, Note *note);
-
-void noteOff(Synth *synth, int index);
+void noteOn(Note *note);
 
 int note_name_to_midi(const char *note);
 
 float note_to_freq(int note);
 
 int compare_by_time(const void *a, const void *b);
+
+typedef struct SongTree {
+	NoteArray *na;
+	int size;
+	struct SongTree *next;
+} SongTree;
+
+bool addNodeToSongBranch(SongTree *array_current, NoteArray *na);
+
+void cleanSongTree(SongTree *head);
+
+SongTree *createSongTree(NoteArray *masterqueue, int nasize);
 
 #endif

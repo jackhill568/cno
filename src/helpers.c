@@ -1,6 +1,8 @@
 #include "helpers.h"
 #include <math.h>
 #include <stdbool.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 float saw_wave (float phase) { return phase * 2 - 1.0f; }
 float sine_wave (float phase) { return sin (2 * 3.14 * phase); }
@@ -10,30 +12,27 @@ float triangle_wave (float phase) { return 1.0f - 4.0f * fabsf (0.5f - phase); }
 extern float (*wave_functions[NUM_WAVES]) (float)
     = { sine_wave, saw_wave, square_wave, triangle_wave };
 
-//int get_free_note (Synth* synth)
-//{
-//    for (int i = 0; i < MAX_NOTES; i++)
-//    {
-//        if (synth->notes[i].active <= 0.0f)
-//            return i;
-//    }
-//    return -1;
-//}
-//
-//void noteOn (Synth* synth, Note* note)
-//{
-//    int index = get_free_note (synth);
-//    if (index < 0)
-//        return;
-//    synth->notes[index] = *note;
-//}
-//
-//void noteOff (Synth* synth, int index)
-//{
-//    if (index < 0 || index >= MAX_NOTES)
-//        return;
-//    synth->notes[index].active = 0.0f;
-//}
+Note activeNotes[MAX_NOTES];
+
+int get_free_note()
+{
+	int min = 0;
+    for (int i = 0; i < MAX_NOTES; i++)
+    {
+		if (activeNotes[i].amplitude < activeNotes[min].amplitude) {
+			min = i;
+		}
+        if (activeNotes[i].active <= 0.0f)
+            return i;
+    }
+    return min;
+}
+
+void noteOn(Note* note)
+{
+    int index = get_free_note();
+    activeNotes[index] = *note;
+}
 
 int note_name_to_midi (const char* note)
 {
@@ -91,6 +90,59 @@ int compare_by_time(const void *a, const void *b) {
     return 0;
 }
 
+bool addNodeToSongBranch(SongTree *array_current, NoteArray *na) {
+	NoteArray *temp = realloc(array_current->na, ++array_current->size * sizeof(NoteArray));
+	if (!temp) {
+		printf("ERROR resizing NoteArray for SongTree\n");
+		array_current->size--;
+		return 1;
+	}
+	array_current->na= temp;
+	array_current->na[array_current->size -1] = *na;
+	return 0;
+}
 
+void cleanSongTree(SongTree *head) {
+	SongTree *current = head;	
+	while (current!=NULL) {
+		if (current->na != NULL) {
+			free(current->na);
+		}
+		SongTree *temp = current->next;	
+		free(current);
+		current = temp;
+	}
+}
 
+SongTree *createSongTree(NoteArray *masterqueue, int nasize) {
+	SongTree *array_current = calloc(1, sizeof(SongTree));
+	if (!array_current) {
+		printf("ERROR allocating initial memory for SongTree\n");
+		return NULL;
+	}
+	SongTree* head = array_current;
+	for (int i = 0; i < nasize; i++) {
+		NoteArray *na = &masterqueue[i];
+		if (array_current->na == NULL || na->start_sample == array_current->na->start_sample) {
+			if (1== addNodeToSongBranch(array_current, na)){
+				cleanSongTree(head);
+				return NULL;
+			}
+		} else {
+			SongTree *new = calloc(1, sizeof(SongTree));
+			if (!new)  {
+				printf("ERROR allocating for new SongTree branch\n");
+				cleanSongTree(head);
+				return NULL;
+			}
+			array_current->next = new;
+			array_current = new;
+			if (addNodeToSongBranch(array_current, na)==1){
+				cleanSongTree(head);
+				return NULL;
+			}
+		}
+	}
+	return head;
+}
 
