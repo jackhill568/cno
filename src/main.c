@@ -9,8 +9,40 @@
 
 #define SAMPLE_RATE 44100.0f
 
-int main ()
+int main (int argc, char *argv[])
 {
+	
+	char *input = NULL;
+	char *output = "output.wav";
+	if (argc < 2) {
+		fprintf(stderr, "Please provide an input file\n");
+		fprintf(stderr, "Example: cno -i input.CNOF -o output.wav\n");
+		return 1;
+	}
+	for (int i =0; i < argc; i ++) {
+		if (strcmp(argv[i],"-i") == 0) {
+			if (i + 1 < argc) {
+				input = argv[++i];
+			} else {
+				fprintf(stderr, "'-i' requires a filename\n");
+			}
+		}
+		else if (strcmp(argv[i], "-o") == 0) {
+			if (i + 1 < argc) {
+				output = argv[++i];
+			} else {
+				fprintf(stderr,"'-o' requires a filename\n");
+			}
+		} else if (i != 0){
+			fprintf(stderr, "%s, Option not recognised\n", argv[i]);
+		}
+	}
+	if (input == NULL) {
+		fprintf(stderr, "Please provide an input file\n");
+		fprintf(stderr, "Example: cno -i input.CNOF -o output.wav\n");
+		return 1;
+	}
+
     SNDFILE* file;
     SF_INFO sfinfo;
 
@@ -20,7 +52,7 @@ int main ()
     data.current_sample = 0;
 
     Song song;
-    parseSong (&song, "Wonder.CNOF");
+    parseSong (&song, input);
     printf ("Compliling complete\n");
 
     int total_notearrys = 0;
@@ -59,7 +91,7 @@ int main ()
 		printf("Conversion complete\n");
 	}
 	
-	// linsndfile stuff
+	// linsndfile 
 	memset(&sfinfo, 0, sizeof(sfinfo));
 	sfinfo.samplerate = data.sample_rate;
 	sfinfo.channels = 2;
@@ -67,7 +99,7 @@ int main ()
 	
 	printf("Creating sndfile write buffer\n");
 	float *buffer = malloc(sizeof(float) * 2 * total_samples);
-    if (!(file = sf_open ("temp.wav", SFM_WRITE, &sfinfo)))
+    if (!(file = sf_open (output, SFM_WRITE, &sfinfo)))
     {
         printf ("Error : Not able to open output file.\n");
 		free(buffer);

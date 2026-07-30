@@ -3,7 +3,7 @@ CFLAGS  = -Wall -Wextra -std=c99 -Iinclude -O3
 LDFLAGS =  -lm -lsndfile 
 
 BUILD   = build
-TARGET  = main
+TARGET  = cno
 SRC     = $(wildcard src/*.c)
 OBJ     = $(patsubst src/%.c, $(BUILD)/%.o, $(SRC))
 
